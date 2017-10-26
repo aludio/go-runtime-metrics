@@ -7,9 +7,9 @@ import (
 
 	"fmt"
 
+	"github.com/aludio/go-runtime-metrics/collector"
 	"github.com/influxdata/influxdb/client/v2"
 	"github.com/pkg/errors"
-	"github.com/tevjef/go-runtime-metrics/collector"
 )
 
 const (
@@ -67,7 +67,7 @@ type Config struct {
 	// Disable collecting GC Statistics (requires Memory be not be disabled). mem.gc.*
 	DisableGc bool
 
-	// Default is DefaultLogger which exits when the library encounters a fatal error.
+	// Default is DefaultLogger
 	Logger Logger
 }
 
@@ -134,7 +134,7 @@ func RunCollector(config *Config) (err error) {
 	_, err = queryDB(clnt, fmt.Sprintf("CREATE DATABASE \"%s\"", config.Database))
 
 	if err != nil {
-		config.Logger.Fatalln(err)
+		return err
 	}
 
 	_runStats := &runStats{
@@ -177,7 +177,8 @@ func (r *runStats) onNewPoint(fields collector.Fields) {
 	pt, err := client.NewPoint(r.config.Measurement, fields.Tags(), fields.Values(), time.Now())
 
 	if err != nil {
-		r.logger.Fatalln(errors.Wrap(err, "error while creating point"))
+		r.logger.Error(errors.Wrap(err, "error while creating point"))
+		return
 	}
 
 	r.pc <- pt
@@ -191,7 +192,8 @@ func (r *runStats) newBatch() (bp client.BatchPoints, err error) {
 	})
 
 	if err != nil {
-		r.logger.Fatalln(errors.Wrap(err, "could not create BatchPoints"))
+		r.logger.Error(errors.Wrap(err, "could not create BatchPoints"))
+		return
 	}
 
 	return
@@ -209,7 +211,7 @@ func (r *runStats) loop(interval time.Duration) {
 			}
 
 			if err := r.client.Write(r.points); err != nil {
-				r.logger.Fatalln(errors.Wrap(err, "could not write points to InfluxDB"))
+				r.logger.Error(errors.Wrap(err, "could not write points to InfluxDB"))
 				continue
 			}
 
@@ -218,7 +220,7 @@ func (r *runStats) loop(interval time.Duration) {
 			bp, err := r.newBatch()
 
 			if err != nil {
-				r.logger.Fatalln(errors.Wrap(err, "could not create BatchPoints"))
+				r.logger.Error(errors.Wrap(err, "could not create BatchPoints"))
 				continue
 			}
 
@@ -236,13 +238,13 @@ func (r *runStats) loop(interval time.Duration) {
 
 type Logger interface {
 	Println(v ...interface{})
-	Fatalln(v ...interface{})
+	Error(v ...interface{})
 }
 
 type DefaultLogger struct{}
 
 func (*DefaultLogger) Println(v ...interface{}) {}
-func (*DefaultLogger) Fatalln(v ...interface{}) { log.Fatalln(v) }
+func (*DefaultLogger) Error(v ...interface{})   { log.Println(v) }
 
 func queryDB(clnt client.Client, cmd string) (res []client.Result, err error) {
 	q := client.Query{

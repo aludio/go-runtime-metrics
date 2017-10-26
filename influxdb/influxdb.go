@@ -2,7 +2,8 @@ package influxdb
 
 import (
 	"expvar"
-	"github.com/tevjef/go-runtime-metrics/collector"
+
+	"github.com/aludio/go-runtime-metrics/collector"
 )
 
 // A structure compatible with Telegraf's InfluxDB input plugin format
@@ -21,7 +22,7 @@ type Point struct {
 //
 //  import (
 //     "expvar"
-//     "github.com/tevjef/go-runtime-metrics/influxdb"
+//     "github.com/aludio/go-runtime-metrics/influxdb"
 //  )
 //
 //  func main {
